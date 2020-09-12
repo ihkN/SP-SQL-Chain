@@ -15,6 +15,15 @@ methodmap SQLChain < DataPack
 		return view_as< SQLChain >(pack);
 	}
 
+	// public const char[] AsString() {
+	// 	this.Reset();
+	// 	int len = this.ReadCell()+1;
+	// 	char[] myself = new char[len];
+	// 	this.ReadString(myself, len);
+
+	// 	return myself;
+	// }
+
 	public SQLChain Do( char[] appended )	// Private tags please ;-;
 	{
 		this.Reset();
@@ -31,20 +40,64 @@ methodmap SQLChain < DataPack
 		return this;
 	}
 
-	public void Query( Database db, SQLQueryCallback callback, any data = 0, DBPriority prio = DBPrio_Normal )
+	public void Clear()
+	{
+		this.Reset(true);
+		this.WriteCell(0);
+		this.WriteString("");
+	}
+
+	public void TQuery( Database db, SQLQueryCallback callback, any data = 0, DBPriority prio = DBPrio_Normal )
 	{
 		this.Reset();
 		int len = this.ReadCell()+1;
 		char[] myself = new char[len];
 		this.ReadString(myself, len);
 		db.Query(callback, myself, data, prio);
+
+		this.Clear();
 	}
 
-	public void Clear()
-	{
-		this.Reset(true);
-		this.WriteCell(0);
-		this.WriteString("");
+	public void FQuery( Database db ) {
+		this.Reset();
+		int len = this.ReadCell()+1;
+		char[] myself = new char[len];
+		this.ReadString(myself, len);
+
+		char msg[100];
+		Format(msg, sizeof(msg), "[DB] FQuery: %s", myself);
+
+		if (!SQL_FastQuery(db, myself))
+		{
+    		char error[255];
+    		SQL_GetError(db, error, sizeof(error));
+    		PrintToServer(msg);
+    		PrintToServer("[DB] FQuery: Failed to query (error: %s)", error);
+		}
+
+		this.Clear();
+	}
+
+	public DBResultSet RQuery( Database db ) {
+		this.Reset();
+		int len = this.ReadCell()+1;
+		char[] myself = new char[len];
+		this.ReadString(myself, len);
+
+		char msg[100];
+		Format(msg, sizeof(msg), "[DB] RQuery: %s", myself);
+
+		DBResultSet result = SQL_Query(db, myself);
+		if (result == null)
+		{
+			char error[255];
+			SQL_GetError(db, error, sizeof(error));
+			PrintToServer(msg);
+			PrintToServer("[DB] RQuery: Failed to query (error: %s)", error);
+		} 
+
+		this.Clear();
+		return result;
 	}
 
 	public SQLChain Clone()
@@ -755,6 +808,18 @@ methodmap SQLChain < DataPack
 		else return this.Do(" KEY");
 	}
 
+	public SQLChain Ignore( char[] query = "", any ... )
+	{
+		if (query[0] != '\0')
+		{
+			char buffer[MAX_QUERY_APPEND_LEN];
+			VFormat(buffer, sizeof(buffer), query, 3);
+			Format(buffer, sizeof(buffer), " IGNORE %s", buffer);
+			return this.Do(buffer);
+		}
+		else return this.Do(" IGNORE");
+	}
+
 	public SQLChain Continue( char[] query = "", any ... )
 	{
 		if (query[0] != '\0')
@@ -1137,6 +1202,18 @@ methodmap SQLChain < DataPack
 			return this.Do(buffer);
 		}
 		else return this.Do(" ON");
+	}
+	
+	public SQLChain Duplicate( char[] query = "", any ... )
+	{
+		if (query[0] != '\0')
+		{
+			char buffer[MAX_QUERY_APPEND_LEN];
+			VFormat(buffer, sizeof(buffer), query, 3);
+			Format(buffer, sizeof(buffer), " DUPLICATE %s", buffer);
+			return this.Do(buffer);
+		}
+		else return this.Do(" DUPLICATE");
 	}
 
 	public SQLChain Deny( char[] query = "", any ... )
